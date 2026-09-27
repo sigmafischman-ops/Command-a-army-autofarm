@@ -1,0 +1,156 @@
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualUser = game:GetService("VirtualUser")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+
+local Remotes = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes")
+local InProgressResponse = Remotes:WaitForChild("InProgressResponse")
+local TroopStateRequest = Remotes:WaitForChild("TroopStateRequest")
+local TeamRequest = Remotes:WaitForChild("TeamRequest")
+
+local running = false
+local ATTACK_DELAY = 0.35
+
+
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
+
+
+local function joinTeam()
+    pcall(function()
+        TeamRequest:FireServer("Attackers")
+    end)
+    task.wait(0.4)
+    pcall(function()
+        TeamRequest:FireServer("Defenders")
+    end)
+end
+
+local function joinInProgress()
+    pcall(function()
+        InProgressResponse:FireServer(true)
+    end)
+end
+
+local function spamAttack()
+    pcall(function()
+        TroopStateRequest:FireServer("Attack")
+    end)
+end
+
+
+local function startFarm()
+    task.spawn(function()
+        while running do
+
+            joinInProgress()
+            task.wait(0.5)
+            joinTeam()
+            task.wait(0.5)
+
+
+            local attackStart = tick()
+            while running and (tick() - attackStart) < 25 do
+                spamAttack()
+                task.wait(ATTACK_DELAY)
+            end
+
+            task.wait(1.5)
+            joinInProgress()
+            joinTeam()
+        end
+    end)
+end
+
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CAA_AFK"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = CoreGui
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 240, 0, 130)
+Frame.Position = UDim2.new(0, 40, 0.5, -65)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
+Frame.BorderSizePixel = 0
+Frame.Parent = ScreenGui
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 32)
+Title.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+Title.BorderSizePixel = 0
+Title.Text = "CAA AFK Farm"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Parent = Frame
+Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 8)
+
+local TitleFix = Instance.new("Frame")
+TitleFix.Size = UDim2.new(1, 0, 0, 10)
+TitleFix.Position = UDim2.new(0, 0, 1, -10)
+TitleFix.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+TitleFix.BorderSizePixel = 0
+TitleFix.Parent = Title
+
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(1, -20, 0, 36)
+ToggleBtn.Position = UDim2.new(0, 10, 0, 45)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+ToggleBtn.BorderSizePixel = 0
+ToggleBtn.Text = "Start AFK Farm"
+ToggleBtn.Font = Enum.Font.Gotham
+ToggleBtn.TextSize = 14
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Parent = Frame
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
+
+local Status = Instance.new("TextLabel")
+Status.Size = UDim2.new(1, -20, 0, 30)
+Status.Position = UDim2.new(0, 10, 0, 90)
+Status.BackgroundTransparency = 1
+Status.Text = "Status: Stopped"
+Status.Font = Enum.Font.Gotham
+Status.TextSize = 12
+Status.TextColor3 = Color3.fromRGB(160, 160, 170)
+Status.TextXAlignment = Enum.TextXAlignment.Left
+Status.Parent = Frame
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    running = not running
+    if running then
+        ToggleBtn.Text = "Stop AFK Farm"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+        Status.Text = "Status: Farming..."
+        startFarm()
+    else
+        ToggleBtn.Text = "Start AFK Farm"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+        Status.Text = "Status: Stopped"
+    end
+end)
+
+local dragging, dragStart, startPos
+Title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+    end
+end)
+Title.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
